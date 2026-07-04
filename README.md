@@ -2,10 +2,8 @@
 
 A fast-paced, mobile 2D arcade survival game built entirely with React Native and Expo. 
 
-[//]: # (Manish: Add a 3-5 second GIF or 2 side-by-side screenshots of gameplay here. Visuals are the #1 thing recruiters look for.)
-![Gameplay Demo](./assets/demo.gif) 
+https://github.com/user-attachments/assets/d0c2659f-aae9-491c-bfd2-fea24c077f7f
 
-## 🛠 Tech Stack
 * **Framework:** React Native
 * **Environment:** Expo & Expo Go
 * **Storage:** AsyncStorage (Local High Score Persistence)
