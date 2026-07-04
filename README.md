@@ -3,7 +3,7 @@
 A fast-paced, mobile 2D arcade survival game built entirely with React Native and Expo. 
 
 
-<img width="400" height="600" alt="Space Escape Runner (1)" src="https://github.com/user-attachments/assets/dbcf6b4f-3968-40fd-9d41-3f217c4ed191" />
+<img width="300" height="500" alt="Space Escape Runner (1)" src="https://github.com/user-attachments/assets/dbcf6b4f-3968-40fd-9d41-3f217c4ed191" />
 
 
 * **Framework:** React Native
