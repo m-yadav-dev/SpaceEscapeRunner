@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import {
+  Animated,
+  Easing,
   StyleSheet,
   Text,
   View,
@@ -9,6 +11,7 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { LinearGradient } from "expo-linear-gradient";
 
 // 1. Calculate boundaries and sizes once
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -33,9 +36,9 @@ const createInitialGameState = () => ({
 
 export default function App() {
   const [gameStarted, setGameStarted] = useState(false);
-  const [shipPosition, setShipPosition] = useState(0);
   const [highScore, setHighScore] = useState(0);
   const highScoreRef = useRef(0);
+  const shipTranslateX = useRef(new Animated.Value(0)).current;
 
   // We use a Ref for the ship's position so the Game Loop can read the absolute
   // latest value without needing to restart the loop every time the ship moves.
@@ -72,8 +75,8 @@ export default function App() {
   };
 
   const startGame = () => {
-    setShipPosition(0);
     shipPositionRef.current = 0;
+    shipTranslateX.setValue(0);
     setGameState(createInitialGameState());
     setGameStarted(true);
   };
@@ -89,7 +92,12 @@ export default function App() {
       -MAX_OFFSET,
     );
     shipPositionRef.current = newPos;
-    setShipPosition(newPos);
+    Animated.timing(shipTranslateX, {
+      toValue: newPos,
+      duration: 160,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
   };
 
   const moveRight = () => {
@@ -99,7 +107,12 @@ export default function App() {
       MAX_OFFSET,
     );
     shipPositionRef.current = newPos;
-    setShipPosition(newPos);
+    Animated.timing(shipTranslateX, {
+      toValue: newPos,
+      duration: 160,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
   };
 
   // --- THE GAME LOOP ---
@@ -167,15 +180,48 @@ export default function App() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
+      <LinearGradient
+        colors={["#050816", "#0f172a", "#1f1147"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={styles.starField} pointerEvents="none">
+        <View style={[styles.star, styles.starOne]} />
+        <View style={[styles.star, styles.starTwo]} />
+        <View style={[styles.star, styles.starThree]} />
+        <View style={[styles.star, styles.starFour]} />
+      </View>
 
       {/* HUD (Heads Up Display) */}
       <View style={styles.header}>
-        <Text style={styles.title}>Space Escape Runner</Text>
-        <Text style={styles.score}>Current Score: {gameState.score}</Text>
-        <Text style={styles.highScore}>High Score: {highScore}</Text>
+        <View style={styles.hudGlass}>
+          <Text style={styles.title}>Space Escape Runner</Text>
+          <View style={styles.hudRow}>
+            <View style={styles.hudChip}>
+              <Text style={styles.hudLabel}>Score</Text>
+              <Text style={styles.score}>{gameState.score}</Text>
+            </View>
+            <View style={styles.hudChip}>
+              <Text style={styles.hudLabel}>High</Text>
+              <Text style={styles.highScore}>{highScore}</Text>
+            </View>
+          </View>
+        </View>
       </View>
 
       <View style={styles.gameArea}>
+        <LinearGradient
+          colors={[
+            "rgba(96, 165, 250, 0.08)",
+            "rgba(168, 85, 247, 0.04)",
+            "rgba(0,0,0,0)",
+          ]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={styles.vignette}
+          pointerEvents="none"
+        />
         {/* Render Asteroid if game is active */}
         {gameStarted && !gameState.isGameOver && (
           <View
@@ -187,54 +233,67 @@ export default function App() {
         )}
 
         {/* The Spaceship */}
-        <View
+        <Animated.View
           style={[
             styles.shipContainer,
             {
               bottom: SHIP_BOTTOM_OFFSET,
-              transform: [{ translateX: shipPosition }],
+              transform: [{ translateX: shipTranslateX }],
             },
           ]}
         >
+          <View style={styles.shipGlow} />
+          <View style={styles.shipShadow} />
+          <View style={styles.shipEngineGlow} />
           <View style={styles.shipNose} />
           <View style={styles.shipBody} />
-          <View style={styles.shipWings} />
-        </View>
+          <View style={styles.shipCore} />
+          <View style={styles.shipWingLeft} />
+          <View style={styles.shipWingRight} />
+        </Animated.View>
 
         {/* Game Over Screen Overlay */}
         {gameState.isGameOver && (
           <View style={styles.gameOverOverlay}>
-            <Text style={styles.gameOverText}>GAME OVER</Text>
-            <Text style={styles.finalScoreText}>
-              Final Score: {gameState.score}
-            </Text>
-            <TouchableOpacity style={styles.startButton} onPress={restartGame}>
-              <Text style={styles.buttonText}>Play Again</Text>
-            </TouchableOpacity>
+            <View style={styles.overlayGlass}>
+              <Text style={styles.gameOverText}>GAME OVER</Text>
+              <Text style={styles.finalScoreText}>
+                Final Score: {gameState.score}
+              </Text>
+              <TouchableOpacity style={styles.primaryButton} onPress={restartGame}>
+                <Text style={styles.buttonText}>Play Again</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
         {/* Initial Start Screen Overlay */}
         {!gameStarted && !gameState.isGameOver && (
           <View style={styles.gameOverOverlay}>
-            <TouchableOpacity style={styles.startButton} onPress={startGame}>
-              <Text style={styles.buttonText}>Start Game</Text>
-            </TouchableOpacity>
+            <View style={styles.overlayGlass}>
+              <Text style={styles.overlayTitle}>Launch Sequence Ready</Text>
+              <Text style={styles.overlayCopy}>
+                Dodge the meteors and survive as long as you can.
+              </Text>
+              <TouchableOpacity style={styles.primaryButton} onPress={startGame}>
+                <Text style={styles.buttonText}>Start Game</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
       </View>
 
       {/* Movement Controls */}
       <View style={styles.controls}>
-        <TouchableOpacity style={styles.restartButton} onPress={restartGame}>
+        <TouchableOpacity style={[styles.controlButton, styles.restartButton]} onPress={restartGame}>
           <Text style={styles.buttonText}>Restart</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.moveButton} onPress={moveLeft}>
+        <TouchableOpacity style={[styles.controlButton, styles.moveButton]} onPress={moveLeft}>
           <Text style={styles.buttonText}>Move Left</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.moveButton} onPress={moveRight}>
+        <TouchableOpacity style={[styles.controlButton, styles.moveButton]} onPress={moveRight}>
           <Text style={styles.buttonText}>Move Right</Text>
         </TouchableOpacity>
       </View>
@@ -243,24 +302,103 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0f172a" },
-  header: { alignItems: "center", paddingTop: 20, zIndex: 10 },
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#f8fafc",
-    marginBottom: 10,
+  container: { flex: 1, backgroundColor: "#050816" },
+  starField: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.85,
   },
-  score: { fontSize: 20, color: "#94a3b8", marginBottom: 20 },
-  highScore: { fontSize: 18, color: "#fbbf24", marginBottom: 12 },
-  startButton: {
-    backgroundColor: "#3b82f6",
+  star: {
+    position: "absolute",
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.85)",
+    shadowColor: "#93c5fd",
+    shadowOpacity: 0.45,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  starOne: { width: 3, height: 3, top: 80, left: 42 },
+  starTwo: { width: 2, height: 2, top: 160, right: 52 },
+  starThree: { width: 4, height: 4, top: 280, left: 110 },
+  starFour: { width: 2, height: 2, top: 360, right: 120 },
+  header: { alignItems: "center", paddingTop: 16, zIndex: 10 },
+  hudGlass: {
+    width: "92%",
+    borderRadius: 24,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    backgroundColor: "rgba(15, 23, 42, 0.48)",
+    borderWidth: 1,
+    borderColor: "rgba(191, 219, 254, 0.16)",
+    shadowColor: "#60a5fa",
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 10,
+  },
+  hudRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  hudChip: {
+    flex: 1,
+    borderRadius: 18,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  title: {
+    fontSize: 26,
+    fontWeight: "800",
+    color: "#f8fafc",
+    marginBottom: 12,
+    letterSpacing: 0.4,
+  },
+  hudLabel: {
+    fontSize: 12,
+    textTransform: "uppercase",
+    letterSpacing: 1.2,
+    color: "#93c5fd",
+    marginBottom: 4,
+  },
+  score: { fontSize: 24, color: "#f8fafc", fontWeight: "800" },
+  highScore: { fontSize: 24, color: "#fde68a", fontWeight: "800" },
+  primaryButton: {
     paddingVertical: 15,
     paddingHorizontal: 40,
-    borderRadius: 30,
-    marginTop: 20,
+    borderRadius: 28,
+    marginTop: 18,
+    backgroundColor: "rgba(96, 165, 250, 0.2)",
+    borderWidth: 1,
+    borderColor: "rgba(147, 197, 253, 0.35)",
+    shadowColor: "#60a5fa",
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
+  },
+  overlayGlass: {
+    width: "88%",
+    paddingVertical: 24,
+    paddingHorizontal: 22,
+    borderRadius: 28,
+    alignItems: "center",
+    backgroundColor: "rgba(15, 23, 42, 0.58)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+    shadowColor: "#0ea5e9",
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 14 },
+    elevation: 12,
   },
   gameArea: { flex: 1, position: "relative" },
+  vignette: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1,
+  },
 
   // Spaceship Styling
   shipContainer: {
@@ -269,8 +407,44 @@ const styles = StyleSheet.create({
     marginLeft: -(SHIP_WIDTH / 2),
     width: SHIP_WIDTH,
     alignItems: "center",
+    zIndex: 5,
+  },
+  shipGlow: {
+    position: "absolute",
+    top: 10,
+    width: 58,
+    height: 78,
+    borderRadius: 32,
+    backgroundColor: "rgba(59, 130, 246, 0.18)",
+    shadowColor: "#38bdf8",
+    shadowOpacity: 0.9,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 8,
+  },
+  shipShadow: {
+    position: "absolute",
+    top: 14,
+    width: 46,
+    height: 68,
+    borderRadius: 24,
+    backgroundColor: "rgba(14, 165, 233, 0.08)",
+  },
+  shipEngineGlow: {
+    position: "absolute",
+    bottom: 0,
+    width: 18,
+    height: 16,
+    borderRadius: 10,
+    backgroundColor: "rgba(34, 211, 238, 0.85)",
+    shadowColor: "#22d3ee",
+    shadowOpacity: 0.95,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 8,
   },
   shipNose: {
+    zIndex: 4,
     width: 0,
     height: 0,
     borderLeftWidth: 15,
@@ -280,15 +454,63 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
     borderLeftColor: "transparent",
     borderRightColor: "transparent",
-    borderBottomColor: "#fbbf24",
+    borderBottomColor: "#7dd3fc",
   },
-  shipBody: { width: 24, height: 40, backgroundColor: "#cbd5e1" },
-  shipWings: {
-    width: SHIP_WIDTH,
-    height: 12,
-    backgroundColor: "#ef4444",
-    marginTop: -15,
-    borderRadius: 5,
+  shipBody: {
+    width: 24,
+    height: 40,
+    backgroundColor: "#cbd5e1",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.26)",
+    shadowColor: "#60a5fa",
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 4,
+  },
+  shipCore: {
+    position: "absolute",
+    top: 26,
+    width: 8,
+    height: 22,
+    borderRadius: 6,
+    backgroundColor: "#22d3ee",
+    shadowColor: "#22d3ee",
+    shadowOpacity: 0.9,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 5,
+  },
+  shipWingLeft: {
+    position: "absolute",
+    top: 26,
+    left: 0,
+    width: 17,
+    height: 14,
+    borderRadius: 10,
+    backgroundColor: "#38bdf8",
+    transform: [{ rotate: "18deg" }, { translateX: -7 }],
+    shadowColor: "#38bdf8",
+    shadowOpacity: 0.65,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 4,
+  },
+  shipWingRight: {
+    position: "absolute",
+    top: 26,
+    right: 0,
+    width: 17,
+    height: 14,
+    borderRadius: 10,
+    backgroundColor: "#a855f7",
+    transform: [{ rotate: "-18deg" }, { translateX: 7 }],
+    shadowColor: "#a855f7",
+    shadowOpacity: 0.55,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 4,
   },
 
   // Asteroid Styling
@@ -296,25 +518,47 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: ASTEROID_SIZE,
     height: ASTEROID_SIZE,
-    backgroundColor: "#94a3b8",
     borderRadius: ASTEROID_SIZE / 2,
+    backgroundColor: "rgba(148, 163, 184, 0.92)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+    shadowColor: "#fb7185",
+    shadowOpacity: 0.9,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 10,
   },
 
   // Overlays
   gameOverOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(15, 23, 42, 0.9)",
+    backgroundColor: "rgba(2, 6, 23, 0.62)",
     justifyContent: "center",
     alignItems: "center",
     zIndex: 20,
   },
   gameOverText: {
     fontSize: 40,
-    fontWeight: "bold",
-    color: "#ef4444",
+    fontWeight: "900",
+    color: "#fda4af",
     marginBottom: 10,
+    letterSpacing: 1.5,
   },
-  finalScoreText: { fontSize: 24, color: "#f8fafc", marginBottom: 20 },
+  overlayTitle: {
+    fontSize: 30,
+    fontWeight: "900",
+    color: "#f8fafc",
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  overlayCopy: {
+    fontSize: 16,
+    color: "#cbd5e1",
+    textAlign: "center",
+    lineHeight: 22,
+    maxWidth: 280,
+  },
+  finalScoreText: { fontSize: 24, color: "#f8fafc", marginBottom: 6 },
 
   // Controls
   controls: {
@@ -322,20 +566,28 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     padding: 20,
     paddingBottom: 40,
+    gap: 10,
+  },
+  controlButton: {
+    paddingVertical: 15,
+    borderRadius: 16,
+    alignItems: "center",
+    flex: 1,
+    backgroundColor: "rgba(15, 23, 42, 0.56)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+    shadowColor: "#0f172a",
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 5,
   },
   restartButton: {
-    backgroundColor: "#1d4ed8",
-    paddingVertical: 15,
-    borderRadius: 10,
-    width: "30%",
-    alignItems: "center",
+    backgroundColor: "rgba(59, 130, 246, 0.22)",
+    borderColor: "rgba(96, 165, 250, 0.35)",
   },
   moveButton: {
-    backgroundColor: "#475569",
-    paddingVertical: 15,
-    borderRadius: 10,
-    width: "32%",
-    alignItems: "center",
+    backgroundColor: "rgba(71, 85, 105, 0.35)",
   },
-  buttonText: { color: "#ffffff", fontSize: 18, fontWeight: "bold" },
+  buttonText: { color: "#ffffff", fontSize: 16, fontWeight: "800", letterSpacing: 0.3 },
 });
