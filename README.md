@@ -23,7 +23,7 @@ Want to test the app on your own device?
 
 **1. Clone the repository**
 ```bash
-1. git clone 
+1. git clone https://github.com/m-yadav-dev/SpaceEscapeRunner.git
 cd SpaceEscapeRunner
 
 2. Install dependencies
